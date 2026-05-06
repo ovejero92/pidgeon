@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: mailspark
+    env: node
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: RESEND_API_KEY
+        sync: false
+      - key: DOMAIN
+        value: turnosok.com
+      - key: PORT
+        value: 3001
