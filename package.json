@@ -3,19 +3,25 @@
   "version": "1.0.0",
   "description": "Pidgeon — microservicio HTTP de envío de correos (Resend), reutilizable entre proyectos",
   "type": "module",
-  "main": "src/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "node server.js",
+    "dev": "node --watch server.js",
     "test": "node test.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["email", "resend", "microservice", "pidgeon"],
+  "keywords": [
+    "email",
+    "resend",
+    "microservice",
+    "pidgeon"
+  ],
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "resend": "^4.0.1"
   }

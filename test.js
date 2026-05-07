@@ -35,7 +35,16 @@ async function main() {
   assert(health.res.ok, `GET /health status ${health.res.status}`);
   assert(health.body?.status === 'ok', 'health.status debe ser ok');
   assert(typeof health.body?.timestamp === 'string', 'health.timestamp ISO');
+  assert(Number.isFinite(health.body?.uptime), 'health.uptime debe ser número (segundos)');
   console.log('✓ GET /health');
+
+  const root = await jsonFetch('/');
+  assert(root.res.ok, `GET / status ${root.res.status}`);
+  assert(
+    root.body?.message?.includes('Pidgeon'),
+    'GET / debe incluir mensaje del servicio',
+  );
+  console.log('✓ GET /');
 
   const idemKey = `test-${Date.now()}`;
   const sendBody = {

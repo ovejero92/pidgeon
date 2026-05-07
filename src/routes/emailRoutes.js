@@ -7,9 +7,9 @@ import {
 
 const router = Router();
 
-function logSendLine(to, outcome, extra = '') {
+function logSendRequest(to, outcome, extra = '') {
   console.log(
-    `[${new Date().toISOString()}] [send] to=${to} outcome=${outcome}${extra ? ` ${extra}` : ''}`,
+    `[${new Date().toISOString()}] [/send] destinatario=${to} resultado=${outcome}${extra ? ` ${extra}` : ''}`,
   );
 }
 
@@ -34,8 +34,19 @@ async function sendInBatchesPerSecond(recipients, payloadFactory, batchSize = 5,
   return results;
 }
 
+router.get('/', (_req, res) => {
+  res.json({
+    message: 'Pidgeon Email Service is running',
+    version: '1.0',
+  });
+});
+
 router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+  });
 });
 
 router.post('/send', async (req, res) => {
@@ -48,41 +59,44 @@ router.post('/send', async (req, res) => {
         console.log(
           `[${new Date().toISOString()}] [idempotency] replay key=${idempotencyKey}`,
         );
-        return res.json(cached);
+        return res.status(cached.statusCode).json(cached.body);
       }
     }
 
     if (!to || typeof to !== 'string') {
       const body = { success: false, error: 'Campo "to" es obligatorio.' };
-      if (idempotencyKey) setIdempotentResponse(idempotencyKey, body);
+      if (idempotencyKey) setIdempotentResponse(idempotencyKey, 400, body);
       return res.status(400).json(body);
     }
     if (!subject || typeof subject !== 'string') {
       const body = { success: false, error: 'Campo "subject" es obligatorio.' };
-      if (idempotencyKey) setIdempotentResponse(idempotencyKey, body);
+      if (idempotencyKey) setIdempotentResponse(idempotencyKey, 400, body);
       return res.status(400).json(body);
     }
     if (!html || typeof html !== 'string') {
       const body = { success: false, error: 'Campo "html" es obligatorio.' };
-      if (idempotencyKey) setIdempotentResponse(idempotencyKey, body);
+      if (idempotencyKey) setIdempotentResponse(idempotencyKey, 400, body);
       return res.status(400).json(body);
     }
 
     const outcome = await sendEmail({ to, subject, html, from });
     if (outcome.success) {
-      logSendLine(to, 'success', `messageId=${outcome.messageId}`);
-    } else {
-      logSendLine(to, 'failure', `error=${outcome.error}`);
+      logSendRequest(to, 'éxito', `messageId=${outcome.messageId}`);
+      if (idempotencyKey) setIdempotentResponse(idempotencyKey, 200, outcome);
+      return res.status(200).json(outcome);
     }
 
-    if (idempotencyKey) setIdempotentResponse(idempotencyKey, outcome);
-    return res.status(200).json(outcome);
+    logSendRequest(to, 'fallo', `error=${outcome.error}`);
+    if (idempotencyKey) setIdempotentResponse(idempotencyKey, 500, outcome);
+    return res.status(500).json(outcome);
   } catch (err) {
     const body = {
       success: false,
       error: err?.message || String(err),
     };
-    console.error(`[${new Date().toISOString()}] [send] unexpected`, err);
+    console.error(`[${new Date().toISOString()}] [/send] error inesperado`, err);
+    const key = req.body?.idempotencyKey;
+    if (key && typeof key === 'string') setIdempotentResponse(key, 500, body);
     return res.status(500).json(body);
   }
 });
@@ -127,10 +141,10 @@ router.post('/send-batch', async (req, res) => {
 
     const failures = rows.filter((r) => !r.success);
     rows.forEach((r) => {
-      logSendLine(
-        r.to,
-        r.success ? 'success' : 'failure',
-        r.success ? `messageId=${r.messageId}` : `error=${r.error}`,
+      const resultado = r.success ? 'éxito' : 'fallo';
+      const extra = r.success ? `messageId=${r.messageId}` : `error=${r.error}`;
+      console.log(
+        `[${new Date().toISOString()}] [send-batch] destinatario=${r.to} resultado=${resultado} ${extra}`,
       );
     });
 

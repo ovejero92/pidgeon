@@ -1,6 +1,6 @@
 /**
- * Cache en memoria para /send: misma idempotencyKey en ventana de 5 min → misma respuesta JSON.
- * @type {Map<string, { expiresAt: number, body: object }>}
+ * Cache en memoria para /send: misma idempotencyKey en ventana de 5 min → misma respuesta.
+ * @type {Map<string, { expiresAt: number, statusCode: number, body: object }>}
  */
 const idempotencyStore = new Map();
 
@@ -14,23 +14,21 @@ function pruneExpired() {
 }
 
 /**
- * Si existe resultado cacheado válido para la key, lo devuelve; si no, devuelve null.
+ * @returns {{ statusCode: number, body: object } | null}
  */
 export function getIdempotentResponse(key) {
   if (!key || typeof key !== 'string') return null;
   pruneExpired();
   const hit = idempotencyStore.get(key);
   if (!hit || hit.expiresAt <= Date.now()) return null;
-  return hit.body;
+  return { statusCode: hit.statusCode, body: hit.body };
 }
 
-/**
- * Guarda la respuesta JSON exacta que debe repetirse ante replays de la misma key.
- */
-export function setIdempotentResponse(key, body) {
+export function setIdempotentResponse(key, statusCode, body) {
   if (!key || typeof key !== 'string') return;
   idempotencyStore.set(key, {
     expiresAt: Date.now() + WINDOW_MS,
+    statusCode,
     body,
   });
 }
