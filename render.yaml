@@ -1,3 +1,5 @@
+# Root Directory en Render: déjalo en la raíz del repo (vacío), no "src".
+# Si Root Directory = src, Start debe ser "node server.js", NO "node src/server.js".
 services:
   - type: web
     name: mailspark
